@@ -39,7 +39,7 @@ jobs:
       - name: Build frontend
         working-directory: ./web
         run: |
-          npm ci --omit=dev
+          npm ci
           npm run build
 
       - name: Extract metadata (tags, labels)
