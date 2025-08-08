@@ -39,6 +39,7 @@ tolerations: []
 service:
   type: ClusterIP
   port: 80
+  annotations: {}
 
 http:
   containerPort: 8080

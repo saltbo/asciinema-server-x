@@ -5,7 +5,7 @@ A Helm chart to deploy the asciinema-server-x Go service and optional SPA.
 ## Values overview
 
 - image.repository/tag: container image for the server
-- service.type/port: Kubernetes Service exposure
+- service.type/port/annotations: Kubernetes Service exposure and optional metadata annotations
 - ingress: optional public routing
 - persistence: PVC for data under STORAGE_ROOT (/data by default)
 - admin.*: Basic Auth for admin endpoints
