@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,6 +41,8 @@ jobs:
 
       - name: Push Helm chart to GHCR (OCI)
         run: |
+          CHART_NAME=$(yq '.name' deploy/helm/asciinema-server-x/Chart.yaml)
           CHART_VERSION=$(yq '.version' deploy/helm/asciinema-server-x/Chart.yaml)
-          helm push asciinema-server-x-${CHART_VERSION}.tgz oci://ghcr.io/saltbo/asciinema-server-x
+          CHART_REPO=oci://ghcr.io/${{ github.repository_owner }}
+          helm push ${CHART_NAME}-${CHART_VERSION}.tgz ${CHART_REPO}
 
