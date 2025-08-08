@@ -17,5 +17,4 @@
 
 # Charts
 Chart.lock
-**/charts/*
-**/.helmignore
+.helmignore

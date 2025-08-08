@@ -6,7 +6,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: ghcr.io/your-org/asciinema-server-x
+  repository: ghcr.io/saltbo/asciinema-server-x
   tag: "latest"
   pullPolicy: IfNotPresent
   # pullSecrets: []
