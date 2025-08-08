@@ -17,7 +17,7 @@ type Config struct {
 
 func LoadConfig() Config {
 	cfg := Config{
-		StorageRoot:   getenv("STORAGE_ROOT", "./storage"),
+		StorageRoot:   getenv("STORAGE_ROOT", "./data"),
 		AdminUser:     getenv("ADMIN_BASIC_USER", "admin"),
 		AdminPass:     getenv("ADMIN_BASIC_PASS", "admin"),
 		HTTPPort:      getenv("HTTP_PORT", "8080"),
