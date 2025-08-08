@@ -1,0 +1,21 @@
+# Common Helm ignores
+.DS_Store
+.git/
+.gitignore
+.bzr/
+.hg/
+.svn/
+*.swp
+*.bak
+*.tmp
+*.orig
+*.rej
+
+# IDEs
+.vscode/
+.idea/
+
+# Charts
+Chart.lock
+**/charts/*
+**/.helmignore

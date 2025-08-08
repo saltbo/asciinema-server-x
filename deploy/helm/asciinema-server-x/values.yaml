@@ -1,0 +1,138 @@
+# Default values for asciinema-server-x.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/your-org/asciinema-server-x
+  tag: "latest"
+  pullPolicy: IfNotPresent
+  # pullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podLabels: {}
+
+replicaCount: 1
+
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+affinity: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+service:
+  type: ClusterIP
+  port: 80
+
+http:
+  containerPort: 8080
+
+# Health probes
+livenessProbe:
+  enabled: true
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 6
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  path: /healthz
+  initialDelaySeconds: 2
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 6
+  successThreshold: 1
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: asciinema.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: asciinema-tls
+  #   hosts:
+  #     - asciinema.local
+
+# Persistent volume for storage
+persistence:
+  enabled: true
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  annotations: {}
+  existingClaim: ""
+
+# Environment configuration exposed to the app
+config:
+  STORAGE_ROOT: /data
+  HTTP_PORT: "8080"
+  WEB_DIST_ROOT: /web-dist
+  PUBLIC_BASE_URL: ""
+
+# Admin credentials are stored in a Secret
+admin:
+  username: admin
+  password: admin
+  existingSecret: ""
+  usernameKey: ADMIN_BASIC_USER
+  passwordKey: ADMIN_BASIC_PASS
+
+# Optional extra env vars
+extraEnv: []
+#  - name: SOME_FLAG
+#    value: "1"
+
+extraEnvFrom: []
+#  - secretRef:
+#      name: another-secret
+
+extraVolumes: []
+#  - name: extra
+#    emptyDir: {}
+
+extraVolumeMounts: []
+#  - name: extra
+#    mountPath: /extra
+
+# If you package the SPA separately as a ConfigMap or volume, mount to /web-dist
+webDist:
+  enabled: false
+  # One of the options below:
+  # 1) Use an existing PVC that contains the built web assets
+  existingClaim: ""
+  # 2) Or mount from a ConfigMap (small bundles)
+  configMap:
+    name: ""
+    items: []
+    # - key: index.html
+    #   path: index.html
+  # 3) Or provide an extra volume spec directly via extraVolumes/extraVolumeMounts
+
+# ImagePullSecrets if your registry is private
+imagePullSecrets: []
+# - name: my-regcred

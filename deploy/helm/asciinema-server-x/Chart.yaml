@@ -1,0 +1,6 @@
+apiVersion: v2
+name: asciinema-server-x
+description: A Helm chart for deploying asciinema-server-x (Go API + optional SPA)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,20 @@
+Thank you for installing {{ .Chart.Name }}.
+
+To access your service:
+
+  1. Get the service URL by running these commands:
+     export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "asciinema-server-x.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+     echo http://$SERVICE_IP/
+
+  2. Or, if using Ingress, open your configured host.
+
+Admin credentials:
+  User: {{ .Values.admin.username }}
+  Pass: (stored in Secret){{ if not .Values.admin.existingSecret }} named '{{ include "asciinema-server-x.fullname" . }}'{{ end }}
+
+Storage:
+  {{- if .Values.persistence.enabled }}
+  PVC: {{ include "asciinema-server-x.fullname" . }}-data
+  {{- else }}
+  Using emptyDir, data will not persist when pod restarts.
+  {{- end }}

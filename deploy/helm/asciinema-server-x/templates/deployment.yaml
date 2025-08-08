@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "asciinema-server-x.fullname" . }}
+  labels:
+    {{- include "asciinema-server-x.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "asciinema-server-x.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "asciinema-server-x.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      {{- end }}
+  serviceAccountName: {{ include "asciinema-server-x.serviceAccountName" . }}
+      containers:
+        - name: server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.http.containerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "asciinema-server-x.fullname" . }}
+            {{- range .Values.extraEnvFrom }}
+            - {{ toYaml . | nindent 14 }}
+            {{- end }}
+          env:
+            - name: {{ .Values.admin.usernameKey }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ ternary (include "asciinema-server-x.fullname" .) .Values.admin.existingSecret (not .Values.admin.existingSecret) }}
+                  key: {{ .Values.admin.usernameKey }}
+            - name: {{ .Values.admin.passwordKey }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ ternary (include "asciinema-server-x.fullname" .) .Values.admin.existingSecret (not .Values.admin.existingSecret) }}
+                  key: {{ .Values.admin.passwordKey }}
+            {{- range .Values.extraEnv }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.config.STORAGE_ROOT }}
+            {{- if .Values.webDist.enabled }}
+            - name: web-dist
+              mountPath: {{ .Values.config.WEB_DIST_ROOT }}
+            {{- end }}
+            {{- range .Values.extraVolumeMounts }}
+            - {{ toYaml . | nindent 14 }}
+            {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+            successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+            successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if and .Values.persistence.enabled .Values.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim }}
+          {{- else if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "asciinema-server-x.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.webDist.enabled }}
+        - name: web-dist
+          {{- if .Values.webDist.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.webDist.existingClaim }}
+          {{- else if .Values.webDist.configMap.name }}
+          configMap:
+            name: {{ .Values.webDist.configMap.name }}
+            {{- if .Values.webDist.configMap.items }}
+            items:
+              {{- toYaml .Values.webDist.configMap.items | nindent 14 }}
+            {{- end }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+        {{- range .Values.extraVolumes }}
+        - {{ toYaml . | nindent 10 }}
+        {{- end }}
