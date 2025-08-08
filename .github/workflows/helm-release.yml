@@ -43,6 +43,8 @@ jobs:
         run: |
           CHART_NAME=$(yq '.name' deploy/helm/asciinema-server-x/Chart.yaml)
           CHART_VERSION=$(yq '.version' deploy/helm/asciinema-server-x/Chart.yaml)
-          CHART_REPO=oci://ghcr.io/${{ github.repository_owner }}
+          # Push into a dedicated charts repo path to avoid conflicts with existing packages
+          CHART_REPO=oci://ghcr.io/${{ github.repository_owner }}/charts
+          echo "Pushing chart ${CHART_NAME}:${CHART_VERSION} to ${CHART_REPO}/${CHART_NAME}"
           helm push ${CHART_NAME}-${CHART_VERSION}.tgz ${CHART_REPO}
 
