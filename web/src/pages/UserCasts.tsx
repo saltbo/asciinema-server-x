@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { listUserCasts, CastItem } from '../api/client'
-import { formatBytes } from '../utils/format'
+import { formatBytes, formatDuration } from '../utils/format'
 import { Skeleton, TextSkeleton } from '../components/Skeleton'
 import { Play, Terminal, Copy } from 'lucide-react'
 
@@ -105,6 +105,11 @@ function GroupedList({ items, copied, setCopied }: { items: CastItem[]; copied: 
                         <div className="shrink-0 flex items-center gap-2">
                           <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs px-2 py-0.5">{formatBytes(it.sizeBytes)}</span>
                           <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs px-2 py-0.5">{timeText}</span>
+                          {it.metadata?.duration && (
+                            <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-2 py-0.5">
+                              {formatDuration(it.metadata.duration)}
+                            </span>
+                          )}
                         </div>
                       </div>
             <div className="mt-3 flex items-center gap-2">

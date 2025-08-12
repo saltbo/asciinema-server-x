@@ -1,4 +1,18 @@
-export type CastItem = { relPath: string; sizeBytes: number; mtime: string }
+export type CastMetadata = {
+  version: number
+  width: number
+  height: number
+  timestamp: number
+  title?: string
+  duration?: number
+}
+
+export type CastItem = { 
+  relPath: string
+  sizeBytes: number
+  mtime: string
+  metadata?: CastMetadata
+}
 
 export function getAdminAuthHeader(): HeadersInit | undefined {
   const u = localStorage.getItem('admin_user')

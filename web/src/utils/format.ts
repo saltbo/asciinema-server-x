@@ -12,3 +12,21 @@ export function formatDate(s: string | number | Date) {
   const d = new Date(s)
   return d.toLocaleString()
 }
+
+export function formatDuration(seconds: number) {
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`
+  }
+  
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.round(seconds % 60)
+  
+  if (minutes < 60) {
+    return `${minutes}m ${remainingSeconds}s`
+  }
+  
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  
+  return `${hours}h ${remainingMinutes}m`
+}
