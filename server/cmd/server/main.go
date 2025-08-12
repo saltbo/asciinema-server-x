@@ -37,7 +37,8 @@ func main() {
 		api.POST("/users", handler.CreateOrGetUser(cfg))
 		api.GET("/users", handler.ListUsers(cfg))
 		api.GET("/users/:username/casts", handler.ListUserCasts(cfg))
-		api.GET("/casts/file", handler.GetCastFile(cfg))
+		api.GET("/casts/:id", handler.GetCastMetaByID(cfg))
+		api.GET("/casts/:id/file", handler.GetCastFileByID(cfg))
 	}
 
 	// Static files for SPA if present

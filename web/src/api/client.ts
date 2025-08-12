@@ -8,7 +8,7 @@ export type CastMetadata = {
 }
 
 export type CastItem = { 
-  relPath: string
+  shortId: string
   sizeBytes: number
   mtime: string
   metadata?: CastMetadata

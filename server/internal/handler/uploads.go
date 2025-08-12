@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,13 +17,6 @@ import (
 	"asciinema-server-x/server/internal/util"
 )
 
-type uploadResp struct {
-	Username string `json:"username"`
-	RelPath  string `json:"relPath"`
-	Size     int64  `json:"sizeBytes"`
-	URL      string `json:"url"`
-}
-
 // CastMetadata represents the header of an asciinema cast file
 type CastMetadata struct {
 	Version   int     `json:"version"`
@@ -36,7 +28,7 @@ type CastMetadata struct {
 }
 
 type castItem struct {
-	RelPath  string        `json:"relPath"`
+	ShortID  string        `json:"shortId"`
 	Size     int64         `json:"sizeBytes"`
 	MTime    time.Time     `json:"mtime"`
 	Metadata *CastMetadata `json:"metadata,omitempty"`
@@ -66,15 +58,6 @@ func parseCastMetadata(filePath string) (*CastMetadata, error) {
 	}
 
 	return &metadata, nil
-}
-
-// generateRandomFilename creates a random filename using UUID
-func generateRandomFilename() (string, error) {
-	uuid, err := util.NewUUID()
-	if err != nil {
-		return "", err
-	}
-	return uuid + ".cast", nil
 }
 
 // calculateDuration calculates duration by parsing the cast file to find the last timestamp
@@ -190,19 +173,19 @@ func UploadCast(cfg util.Config) gin.HandlerFunc {
 			return
 		}
 
-		// Generate a random filename using UUID
-		filename, err := generateRandomFilename()
+		// Generate a cast ID
+		castID, err := util.GenerateCastID(u, date)
 		if err != nil {
 			util.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 			return
 		}
+		filename := castID.UniqueID + ".cast"
 		castPath := filepath.Join(dateDir, filename)
-		n, err := storage.WriteFileAtomic(castPath, f)
-		if err != nil {
+		if _, err := storage.WriteFileAtomic(castPath, f); err != nil {
 			util.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 			return
 		}
-		rel := filepath.Join(u, date, filename)
+
 		// Build absolute URL for the frontend Player page
 		var base string
 		if cfg.PublicBaseURL != "" {
@@ -227,8 +210,8 @@ func UploadCast(cfg util.Config) gin.HandlerFunc {
 				base += p
 			}
 		}
-		playURL := base + "/play/" + url.PathEscape(rel)
-		c.JSON(http.StatusCreated, uploadResp{Username: u, RelPath: rel, Size: n, URL: playURL})
+
+		c.JSON(http.StatusCreated, gin.H{"url": base + "/a/" + castID.Encode()})
 	}
 }
 
@@ -265,9 +248,15 @@ func ListUserCasts(cfg util.Config) gin.HandlerFunc {
 					continue
 				}
 
-				// Remove .cast extension from relPath for API response
-				nameWithoutExt := strings.TrimSuffix(name, ".cast")
-				rel := filepath.Join(u, e.Name(), nameWithoutExt)
+				// Remove .cast extension from filename to get the uniqueID
+				uniqueID := strings.TrimSuffix(name, ".cast")
+
+				// Create cast ID
+				castID := &util.CastID{
+					Username: u,
+					Date:     e.Name(),
+					UniqueID: uniqueID,
+				}
 
 				// Parse metadata from file content
 				var metadata *CastMetadata
@@ -278,7 +267,7 @@ func ListUserCasts(cfg util.Config) gin.HandlerFunc {
 				}
 
 				items = append(items, castItem{
-					RelPath:  rel,
+					ShortID:  castID.Encode(),
 					Size:     st.Size(),
 					MTime:    st.ModTime(),
 					Metadata: metadata,
@@ -289,21 +278,78 @@ func ListUserCasts(cfg util.Config) gin.HandlerFunc {
 	}
 }
 
-func GetCastFile(cfg util.Config) gin.HandlerFunc {
+// GetCastMetaByID handles requests to get cast metadata by encoded ID
+func GetCastMetaByID(cfg util.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		rel := c.Query("path")
-		// Add .cast extension for filesystem lookup
-		relWithExt := rel + ".cast"
-		full, err := storage.SafeJoin(cfg.StorageRoot, relWithExt)
-		if err != nil {
-			util.Error(c, http.StatusBadRequest, "PATH_TRAVERSAL_BLOCKED", "invalid path")
+		id := c.Param("id")
+		if id == "" {
+			util.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "missing id parameter")
 			return
 		}
+
+		// Decode ID to get cast information
+		castID, err := util.DecodeCastID(id)
+		if err != nil {
+			util.Error(c, http.StatusBadRequest, "INVALID_ID", "invalid id format")
+			return
+		}
+
+		// Build file path
+		filename := castID.UniqueID + ".cast"
+		full := filepath.Join(cfg.StorageRoot, castID.Username, castID.Date, filename)
+
+		fi, err := os.Stat(full)
+		if err != nil || fi.IsDir() {
+			util.Error(c, http.StatusNotFound, "CAST_NOT_FOUND", "not found")
+			return
+		}
+
+		// Parse metadata from file content
+		var metadata *CastMetadata
+		if castMetadata, err := parseCastMetadata(full); err == nil {
+			metadata = castMetadata
+			// Calculate duration if not present
+			calculateDuration(full, metadata)
+		}
+
+		// Return the same shortID that was passed in
+		item := castItem{
+			ShortID:  id,
+			Size:     fi.Size(),
+			MTime:    fi.ModTime(),
+			Metadata: metadata,
+		}
+
+		c.JSON(http.StatusOK, item)
+	}
+}
+
+// GetCastFileByID handles requests to get cast file content by encoded ID
+func GetCastFileByID(cfg util.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if id == "" {
+			util.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "missing id parameter")
+			return
+		}
+
+		// Decode ID to get cast information
+		castID, err := util.DecodeCastID(id)
+		if err != nil {
+			util.Error(c, http.StatusBadRequest, "INVALID_ID", "invalid id format")
+			return
+		}
+
+		// Build file path
+		filename := castID.UniqueID + ".cast"
+		full := filepath.Join(cfg.StorageRoot, castID.Username, castID.Date, filename)
+
 		if fi, err := os.Stat(full); err != nil || fi.IsDir() {
 			util.Error(c, http.StatusNotFound, "CAST_NOT_FOUND", "not found")
 			return
 		}
-		// Stream file
+
+		// Stream file content
 		f, err := os.Open(full)
 		if err != nil {
 			util.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())

@@ -85,13 +85,10 @@ function GroupedList({ items, copied, setCopied }: { items: CastItem[]; copied: 
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">{ymd}</h3>
           <div className="space-y-3">
             {list.map((it) => {
-              const parts = it.relPath.split('/')
-              const fileName = parts.pop() || it.relPath
-              const dir = parts.join('/')
               const timeText = new Date(it.mtime).toLocaleTimeString()
-              const url = `${window.location.origin}/play/${encodeURIComponent(it.relPath)}`
+              const url = `${window.location.origin}/a/${encodeURIComponent(it.shortId)}`
               return (
-                <div key={it.relPath} className="group p-4 rounded-xl border bg-white dark:bg-gray-800 shadow-sm hover:shadow-md hover:-translate-y-px transition">
+                <div key={it.shortId} className="group p-4 rounded-xl border bg-white dark:bg-gray-800 shadow-sm hover:shadow-md hover:-translate-y-px transition">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 flex items-center justify-center">
                       <Terminal size={18} />
@@ -100,10 +97,10 @@ function GroupedList({ items, copied, setCopied }: { items: CastItem[]; copied: 
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-medium truncate">
-                            {it.metadata?.title || fileName}
+                            {it.metadata?.title || `Cast ${it.shortId.slice(0, 8)}...`}
                           </div>
                           <div className="text-xs text-gray-500 font-mono truncate">
-                            {it.metadata?.title ? it.relPath : dir}
+                            {it.shortId}
                           </div>
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
@@ -122,7 +119,7 @@ function GroupedList({ items, copied, setCopied }: { items: CastItem[]; copied: 
                         </div>
                       </div>
             <div className="mt-3 flex items-center gap-2">
-                        <Link className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 transition text-white rounded" to={`/play/${encodeURIComponent(it.relPath)}`} state={{ item: it }}>
+                        <Link className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 transition text-white rounded" to={`/a/${encodeURIComponent(it.shortId)}`}>
                           <Play size={16} /> 播放
                         </Link>
                         <button

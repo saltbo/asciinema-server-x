@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"asciinema-server-x/server/internal/storage"
 	"asciinema-server-x/server/internal/util"
@@ -44,11 +45,7 @@ func CreateOrGetUser(cfg util.Config) gin.HandlerFunc {
 			c.JSON(http.StatusOK, createResp{Username: r.Username, MachineID: strings.TrimSpace(string(b))})
 			return
 		}
-		mid, err := util.NewUUID()
-		if err != nil {
-			util.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
-			return
-		}
+		mid := uuid.New().String()
 		if err := os.WriteFile(midPath, []byte(mid+"\n"), 0o644); err != nil {
 			util.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 			return

@@ -1,25 +1,45 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import AsciinemaPlayer from '../components/AsciinemaPlayer'
-import { CastItem, getAdminAuthHeader, listUserCasts } from '../api/client'
+import { CastItem, getAdminAuthHeader } from '../api/client'
 import { formatBytes, formatDate } from '../utils/format'
 import { Copy, ArrowLeft } from 'lucide-react'
 
 export default function Player() {
-  const location = useLocation()
-  const relPath = useMemo(() => decodeURIComponent(location.pathname.replace(/^\/play\//, '')), [location.pathname])
+  const { id } = useParams<{ id: string }>()
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [meta, setMeta] = useState<Pick<CastItem, 'sizeBytes' | 'mtime' | 'metadata'> | null>(() => {
-    const st = (location as any).state as { item?: CastItem } | undefined
-    if (st?.item) return { sizeBytes: st.item.sizeBytes, mtime: st.item.mtime, metadata: st.item.metadata }
-    return null
-  })
+  const [meta, setMeta] = useState<Pick<CastItem, 'sizeBytes' | 'mtime' | 'metadata'> | null>(null)
 
+  // Fetch metadata
   useEffect(() => {
+    if (!id) return
     const controller = new AbortController()
-    const url = `/api/casts/file?path=${encodeURIComponent(relPath)}`
+    const url = `/api/casts/${encodeURIComponent(id)}`
+    fetch(url, { headers: getAdminAuthHeader(), signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`fetch metadata failed: ${res.status}`)
+        const data = await res.json()
+        setMeta({
+          sizeBytes: data.sizeBytes,
+          mtime: data.mtime,
+          metadata: data.metadata
+        })
+      })
+      .catch((e) => { 
+        if (!controller.signal.aborted) {
+          setError(`Failed to load metadata: ${String(e)}`)
+        }
+      })
+    return () => controller.abort()
+  }, [id])
+
+  // Fetch cast file
+  useEffect(() => {
+    if (!id) return
+    const controller = new AbortController()
+    const url = `/api/casts/${encodeURIComponent(id)}/file`
     fetch(url, { headers: getAdminAuthHeader(), signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`fetch cast failed: ${res.status}`)
@@ -28,23 +48,22 @@ export default function Player() {
         setBlobUrl(objectUrl)
         setError(null)
       })
-      .catch((e) => { setBlobUrl(null); setError(String(e)) })
-    return () => { controller.abort(); if (blobUrl) URL.revokeObjectURL(blobUrl) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relPath])
-
-  useEffect(() => {
-    if (meta) return
-    // try fetch metadata from list endpoint using username
-    const [username] = relPath.split('/')
-    if (!username) return
-    listUserCasts(username)
-      .then(list => {
-        const found = list.find(i => i.relPath === relPath)
-        if (found) setMeta({ sizeBytes: found.sizeBytes, mtime: found.mtime, metadata: found.metadata })
+      .catch((e) => { 
+        if (!controller.signal.aborted) {
+          setBlobUrl(null)
+          setError(`Failed to load cast: ${String(e)}`)
+        }
       })
-      .catch(() => { /* ignore meta errors */ })
-  }, [relPath, meta])
+    return () => { 
+      controller.abort()
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  if (!id) {
+    return <div className="text-red-600">Missing cast ID</div>
+  }
 
   return (
     <div className="space-y-4">
@@ -55,10 +74,10 @@ export default function Player() {
               <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 break-words">
                 {meta.metadata.title}
               </h1>
-              <div className="text-sm text-gray-500 break-all font-mono">{relPath}</div>
+              <div className="text-sm text-gray-500 break-all font-mono">ID: {id}</div>
             </>
           ) : (
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 break-all font-mono">{relPath}</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 break-all font-mono">ID: {id}</div>
           )}
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
             {meta?.sizeBytes != null && (
@@ -94,7 +113,7 @@ export default function Player() {
           <button
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm"
             onClick={async () => {
-              const url = `${window.location.origin}/play/${encodeURIComponent(relPath)}`
+              const url = `${window.location.origin}/a/${encodeURIComponent(id)}`
               await navigator.clipboard.writeText(url)
               setCopied(true); setTimeout(() => setCopied(false), 1000)
             }}
