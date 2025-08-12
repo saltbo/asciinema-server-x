@@ -99,14 +99,23 @@ function GroupedList({ items, copied, setCopied }: { items: CastItem[]; copied: 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="font-medium truncate">{fileName}</div>
-                          <div className="text-xs text-gray-500 font-mono truncate">{dir}</div>
+                          <div className="font-medium truncate">
+                            {it.metadata?.title || fileName}
+                          </div>
+                          <div className="text-xs text-gray-500 font-mono truncate">
+                            {it.metadata?.title ? it.relPath : dir}
+                          </div>
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs px-2 py-0.5">{formatBytes(it.sizeBytes)}</span>
                           <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs px-2 py-0.5">{timeText}</span>
+                          {it.metadata?.width && it.metadata?.height && (
+                            <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-200 text-xs px-2 py-0.5">
+                              {it.metadata.width}×{it.metadata.height}
+                            </span>
+                          )}
                           {it.metadata?.duration && (
-                            <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-2 py-0.5">
+                            <span className="inline-flex items-center rounded-full bg-purple-100 dark:bg-purple-700 text-purple-700 dark:text-purple-200 text-xs px-2 py-0.5">
                               {formatDuration(it.metadata.duration)}
                             </span>
                           )}

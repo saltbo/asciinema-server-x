@@ -11,9 +11,9 @@ export default function Player() {
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [meta, setMeta] = useState<Pick<CastItem, 'sizeBytes' | 'mtime'> | null>(() => {
+  const [meta, setMeta] = useState<Pick<CastItem, 'sizeBytes' | 'mtime' | 'metadata'> | null>(() => {
     const st = (location as any).state as { item?: CastItem } | undefined
-    if (st?.item) return { sizeBytes: st.item.sizeBytes, mtime: st.item.mtime }
+    if (st?.item) return { sizeBytes: st.item.sizeBytes, mtime: st.item.mtime, metadata: st.item.metadata }
     return null
   })
 
@@ -41,7 +41,7 @@ export default function Player() {
     listUserCasts(username)
       .then(list => {
         const found = list.find(i => i.relPath === relPath)
-        if (found) setMeta({ sizeBytes: found.sizeBytes, mtime: found.mtime })
+        if (found) setMeta({ sizeBytes: found.sizeBytes, mtime: found.mtime, metadata: found.metadata })
       })
       .catch(() => { /* ignore meta errors */ })
   }, [relPath, meta])
@@ -50,13 +50,42 @@ export default function Player() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="text-sm text-gray-500 break-all font-mono">{relPath}</div>
+          {meta?.metadata?.title ? (
+            <>
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 break-words">
+                {meta.metadata.title}
+              </h1>
+              <div className="text-sm text-gray-500 break-all font-mono">{relPath}</div>
+            </>
+          ) : (
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 break-all font-mono">{relPath}</div>
+          )}
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
             {meta?.sizeBytes != null && (
               <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-0.5">{formatBytes(meta.sizeBytes)}</span>
             )}
             {meta?.mtime && (
               <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-0.5">{formatDate(meta.mtime)}</span>
+            )}
+            {meta?.metadata?.width && meta?.metadata?.height && (
+              <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-200 px-2 py-0.5">
+                {meta.metadata.width}×{meta.metadata.height}
+              </span>
+            )}
+            {meta?.metadata?.version && (
+              <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-200 px-2 py-0.5">
+                v{meta.metadata.version}
+              </span>
+            )}
+            {meta?.metadata?.duration && (
+              <span className="inline-flex items-center rounded-full bg-purple-100 dark:bg-purple-700 text-purple-700 dark:text-purple-200 px-2 py-0.5">
+                {Math.round(meta.metadata.duration)}s
+              </span>
+            )}
+            {meta?.metadata?.timestamp && (
+              <span className="inline-flex items-center rounded-full bg-orange-100 dark:bg-orange-700 text-orange-700 dark:text-orange-200 px-2 py-0.5">
+                {formatDate(new Date(meta.metadata.timestamp * 1000).toISOString())}
+              </span>
             )}
           </div>
         </div>
@@ -77,9 +106,13 @@ export default function Player() {
 
       <div className="p-4 border rounded-xl bg-white dark:bg-gray-800">
         {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-    {blobUrl ? (
+        {blobUrl ? (
           <div className="w-full overflow-auto">
-      <AsciinemaPlayer src={blobUrl} />
+            <AsciinemaPlayer 
+              src={blobUrl} 
+              cols={meta?.metadata?.width} 
+              rows={meta?.metadata?.height}
+            />
           </div>
         ) : (
           <div>加载中…</div>
