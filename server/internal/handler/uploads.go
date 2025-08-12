@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -69,67 +68,13 @@ func parseCastMetadata(filePath string) (*CastMetadata, error) {
 	return &metadata, nil
 }
 
-// encodeMetadataToFilename creates a compact filename with encoded metadata
-func encodeMetadataToFilename(metadata *CastMetadata) string {
-	// Use metadata timestamp if available, otherwise generate current timestamp
-	timestamp := metadata.Timestamp
-	if timestamp == 0 {
-		timestamp = time.Now().Unix()
-	}
-
-	// Create a compact JSON representation of the metadata including timestamp
-	metaData := map[string]interface{}{
-		"w":  metadata.Width,
-		"h":  metadata.Height,
-		"t":  metadata.Title,
-		"ts": timestamp,
-	}
-
-	// Add duration if available
-	if metadata.Duration > 0 {
-		metaData["d"] = metadata.Duration
-	}
-
-	metaJSON, _ := json.Marshal(metaData)
-	// Use base64 URL encoding (safe for filenames) - add .cast extension for filesystem
-	metaEncoded := base64.RawURLEncoding.EncodeToString(metaJSON)
-
-	return metaEncoded + ".cast"
-}
-
-// decodeMetadataFromFilename extracts metadata from encoded filename
-func decodeMetadataFromFilename(filename string) *CastMetadata {
-	// Remove .cast extension
-	encoded := strings.TrimSuffix(filename, ".cast")
-
-	decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+// generateRandomFilename creates a random filename using UUID
+func generateRandomFilename() (string, error) {
+	uuid, err := util.NewUUID()
 	if err != nil {
-		return nil
+		return "", err
 	}
-
-	var metaData map[string]interface{}
-	if err := json.Unmarshal(decoded, &metaData); err != nil {
-		return nil
-	}
-
-	metadata := &CastMetadata{}
-	if w, ok := metaData["w"].(float64); ok {
-		metadata.Width = int(w)
-	}
-	if h, ok := metaData["h"].(float64); ok {
-		metadata.Height = int(h)
-	}
-	if t, ok := metaData["t"].(string); ok {
-		metadata.Title = t
-	}
-	if ts, ok := metaData["ts"].(float64); ok {
-		metadata.Timestamp = int64(ts)
-	}
-	if d, ok := metaData["d"].(float64); ok {
-		metadata.Duration = d
-	}
-
-	return metadata
+	return uuid + ".cast", nil
 }
 
 // calculateDuration calculates duration by parsing the cast file to find the last timestamp
@@ -245,8 +190,12 @@ func UploadCast(cfg util.Config) gin.HandlerFunc {
 			return
 		}
 
-		// Create filename with encoded metadata (no UUID needed)
-		filename := encodeMetadataToFilename(&metadata)
+		// Generate a random filename using UUID
+		filename, err := generateRandomFilename()
+		if err != nil {
+			util.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		castPath := filepath.Join(dateDir, filename)
 		n, err := storage.WriteFileAtomic(castPath, f)
 		if err != nil {
@@ -320,19 +269,11 @@ func ListUserCasts(cfg util.Config) gin.HandlerFunc {
 				nameWithoutExt := strings.TrimSuffix(name, ".cast")
 				rel := filepath.Join(u, e.Name(), nameWithoutExt)
 
-				// Try to decode metadata from filename first
+				// Parse metadata from file content
 				var metadata *CastMetadata
-				if decodedMetadata := decodeMetadataFromFilename(name); decodedMetadata != nil {
-					metadata = decodedMetadata
-				} else {
-					// Fallback: parse metadata from file content
-					if castMetadata, err := parseCastMetadata(full); err == nil {
-						metadata = castMetadata
-					}
-				}
-
-				// Calculate duration if not present
-				if metadata != nil {
+				if castMetadata, err := parseCastMetadata(full); err == nil {
+					metadata = castMetadata
+					// Calculate duration if not present
 					calculateDuration(full, metadata)
 				}
 
